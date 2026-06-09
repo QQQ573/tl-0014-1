@@ -1,0 +1,184 @@
+{
+  "description": "5组含损伤/异常场景的测试运单数据",
+  "generatedAt": "2025-02-14",
+  "testOrders": [
+    {
+      "caseId": "CASE-001",
+      "caseName": "轻微花瓣损伤",
+      "scenario": "配送过程中1-2朵玫瑰花轻微受损，花瓣边缘有压痕",
+      "expectedAction": "建议部分退款30%",
+      "severity": "low",
+      "order": {
+        "customerName": "张先生",
+        "customerPhone": "13800000001",
+        "recipientName": "李小姐",
+        "recipientPhone": "13900000001",
+        "deliveryAddress": "北京市朝阳区建国路88号SOHO现代城A座1208",
+        "latitude": 39.9088,
+        "longitude": 116.4609,
+        "flowerType": "红玫瑰",
+        "quantity": 99,
+        "amount": 2999.00,
+        "cardMessage": "亲爱的，情人节快乐！愿我们的爱情像这束玫瑰一样永远鲜艳。",
+        "riderId": "RIDER001",
+        "riderName": "王师傅"
+      },
+      "exception": {
+        "exceptionType": "PETAL_DAMAGE",
+        "damageLevel": "轻微",
+        "description": "运输过程中颠簸导致最外层2朵玫瑰花瓣边缘出现压痕和轻微破损，不影响整体观感。客户坚持要求赔偿。",
+        "suggestedResolution": "PARTIAL_REFUND",
+        "suggestedRefundAmount": 899.70
+      },
+      "gpsPoints": 8,
+      "deliveryProgress": 0.7
+    },
+    {
+      "caseId": "CASE-002",
+      "caseName": "中度花瓣损伤",
+      "scenario": "冷链车温控异常，3-5朵花出现萎蔫",
+      "expectedAction": "建议补发新束",
+      "severity": "medium",
+      "order": {
+        "customerName": "王先生",
+        "customerPhone": "13800000002",
+        "recipientName": "赵女士",
+        "recipientPhone": "13900000002",
+        "deliveryAddress": "北京市海淀区中关村大街27号中关村大厦801室",
+        "latitude": 39.9812,
+        "longitude": 116.3176,
+        "flowerType": "粉玫瑰 + 百合混合花束",
+        "quantity": 1,
+        "amount": 599.00,
+        "cardMessage": "祝我最爱的你情人节快乐，永远美丽动人！",
+        "riderId": "RIDER002",
+        "riderName": "李师傅"
+      },
+      "exception": {
+        "exceptionType": "PETAL_DAMAGE",
+        "damageLevel": "中度",
+        "description": "冷链车中途制冷设备故障约30分钟，导致花束中5朵粉色玫瑰出现萎蔫、花瓣下垂现象。百合相对完好。客户非常不满意，要求重新送一束。",
+        "suggestedResolution": "REISSUE",
+        "suggestedRefundAmount": 0
+      },
+      "gpsPoints": 5,
+      "deliveryProgress": 0.4
+    },
+    {
+      "caseId": "CASE-003",
+      "caseName": "严重花瓣损伤",
+      "scenario": "骑手不慎摔车，整束花严重受损",
+      "expectedAction": "建议全额退款并补发",
+      "severity": "high",
+      "order": {
+        "customerName": "刘总",
+        "customerPhone": "13800000003",
+        "recipientName": "陈经理",
+        "recipientPhone": "13900000003",
+        "deliveryAddress": "北京市西城区金融街7号英蓝国际金融中心23层",
+        "latitude": 39.9172,
+        "longitude": 116.3664,
+        "flowerType": "999朵巨型玫瑰",
+        "quantity": 1,
+        "amount": 12888.00,
+        "cardMessage": "陈经理，情人节快乐！感谢您一直以来的支持与信任。",
+        "riderId": "RIDER003",
+        "riderName": "张师傅"
+      },
+      "exception": {
+        "exceptionType": "PETAL_DAMAGE",
+        "damageLevel": "严重",
+        "description": "骑手在配送途中因雨天路滑不慎摔倒，导致花束外包装破损严重，大量玫瑰花枝折断、花瓣散落。已完全无法作为礼品赠送。客户情绪激动，强烈投诉。",
+        "suggestedResolution": "FULL_REFUND",
+        "suggestedRefundAmount": 12888.00
+      },
+      "gpsPoints": 6,
+      "deliveryProgress": 0.55
+    },
+    {
+      "caseId": "CASE-004",
+      "caseName": "敏感词命中",
+      "scenario": "贺卡留言包含违规敏感词，需人工审核确认",
+      "expectedAction": "人工审核后决定是否放行或修改",
+      "severity": "medium",
+      "order": {
+        "customerName": "周先生",
+        "customerPhone": "13800000004",
+        "recipientName": "吴女士",
+        "recipientPhone": "13900000004",
+        "deliveryAddress": "北京市东城区东长安街1号东方广场W1座",
+        "latitude": 39.9139,
+        "longitude": 116.4105,
+        "flowerType": "郁金香花束",
+        "quantity": 33,
+        "amount": 1188.00,
+        "cardMessage": "宝贝，收到花了吗？里面有违禁词1和一些不太好的话，你懂的。下次不许这样了，再这样我就要去死了，感觉自己像个垃圾废物。",
+        "riderId": "RIDER001",
+        "riderName": "王师傅"
+      },
+      "exception": {
+        "exceptionType": "SENSITIVE_WORD",
+        "damageLevel": null,
+        "description": "系统自动检测到贺卡留言中包含多个敏感词，已暂停配送，等待人工审核确认内容是否违规。",
+        "sensitiveWordHit": ["违禁词1", "去死", "垃圾", "废物"],
+        "suggestedResolution": "NONE",
+        "suggestedRefundAmount": 0
+      },
+      "gpsPoints": 2,
+      "deliveryProgress": 0.15
+    },
+    {
+      "caseId": "CASE-005",
+      "caseName": "收件人地址变更",
+      "scenario": "收件人临时改地址，骑手确认后上报异常",
+      "expectedAction": "审核新地址后决定是否重派或退款",
+      "severity": "low",
+      "order": {
+        "customerName": "孙先生",
+        "customerPhone": "13800000005",
+        "recipientName": "马小姐",
+        "recipientPhone": "13900000005",
+        "deliveryAddress": "北京市丰台区丰台路5号总部基地18号楼",
+        "latitude": 39.8325,
+        "longitude": 116.2808,
+        "flowerType": "康乃馨花束",
+        "quantity": 22,
+        "amount": 498.00,
+        "cardMessage": "亲爱的妈妈，情人节快乐！虽然不能回家陪您，但我的心永远和您在一起。",
+        "riderId": "RIDER002",
+        "riderName": "李师傅"
+      },
+      "exception": {
+        "exceptionType": "ADDRESS_CHANGE",
+        "damageLevel": null,
+        "description": "骑手到达原地址后联系收件人，收件人表示临时有事已离开，要求将花束改送到新地址：北京市朝阳区望京SOHO T3-B座2501。新地址距离原地址约18公里，超出配送范围，需要额外费用或重新安排配送。",
+        "newAddress": "北京市朝阳区望京SOHO T3-B座2501",
+        "newLatitude": 39.9976,
+        "newLongitude": 116.4782,
+        "suggestedResolution": "REISSUE",
+        "suggestedRefundAmount": 0
+      },
+      "gpsPoints": 10,
+      "deliveryProgress": 0.95
+    }
+  ],
+  "howToUse": [
+    "1. 将 order 部分数据提交到 POST /api/orders 接口创建运单",
+    "2. 使用 POST /api/mock/gps/init 初始化对应数量的GPS轨迹点",
+    "3. 将 exception 部分数据提交到 POST /api/exceptions 创建异常工单",
+    "4. 在审核后台查看并审核工单",
+    "5. 在顾客端输入运单号查看异常处理结果"
+  ],
+  "sensitiveWords": [
+    "违禁词1",
+    "违禁词2",
+    "赌博",
+    "毒品",
+    "诈骗",
+    "fuck",
+    "shit",
+    "去死",
+    "垃圾",
+    "废物"
+  ]
+}

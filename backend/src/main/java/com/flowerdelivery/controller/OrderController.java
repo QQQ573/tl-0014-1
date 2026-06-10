@@ -106,4 +106,28 @@ public class OrderController {
         result.put("data", updated);
         return ResponseEntity.ok(result);
     }
+
+    @GetMapping("/{trackingNo}/sign-status")
+    public ResponseEntity<Map<String, Object>> getSignStatus(@PathVariable String trackingNo) {
+        Map<String, Object> status = orderService.getSignStatus(trackingNo);
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("data", status);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/{trackingNo}/sign")
+    public ResponseEntity<Map<String, Object>> signOrder(@PathVariable String trackingNo,
+                                                          @RequestBody Map<String, Object> request) {
+        String signCode = (String) request.get("signCode");
+        String riderId = (String) request.get("riderId");
+        String riderName = (String) request.get("riderName");
+
+        Map<String, Object> signResult = orderService.verifySignAndDeliver(trackingNo, signCode, riderId, riderName);
+        Integer code = (Integer) signResult.get("code");
+        if (code != null && code == 429) {
+            return ResponseEntity.status(429).body(signResult);
+        }
+        return ResponseEntity.ok(signResult);
+    }
 }

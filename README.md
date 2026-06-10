@@ -209,6 +209,8 @@ sequenceDiagram
 | GET | /api/orders/orderNo/{orderNo} | 根据订单号查询 |
 | PUT | /api/orders/{trackingNo}/status | 更新订单状态 |
 | GET | /api/orders/{trackingNo}/logs | 获取状态变更日志 |
+| GET | /api/orders/{trackingNo}/sign-status | 查询签收状态（是否锁定、剩余次数） |
+| POST | /api/orders/{trackingNo}/sign | 签收验证码校验并完成签收 |
 
 ### GPS相关
 | 方法 | 路径 | 说明 |

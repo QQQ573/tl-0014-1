@@ -27,6 +27,8 @@ export const orderApi = {
       params: { riderId, riderName }
     }),
   getOrdersByRider: (riderId) => request.get(`/orders/rider/${riderId}`),
+  getSignStatus: (trackingNo) => request.get(`/orders/${trackingNo}/sign-status`),
+  signOrder: (trackingNo, data) => request.post(`/orders/${trackingNo}/sign`, data),
 }
 
 export const gpsApi = {

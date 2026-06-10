@@ -12,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -27,6 +29,10 @@ public class OrderService {
 
     private static final String ORDER_CACHE_PREFIX = "flower:order:";
     private static final String TRACKING_NO_PREFIX = "FD";
+    private static final String SIGN_CODE_PREFIX = "flower:sign:";
+    private static final String SIGN_FAIL_PREFIX = "flower:sign:fail:";
+    private static final int MAX_SIGN_ATTEMPTS = 3;
+    private static final long SIGN_LOCK_SECONDS = 600;
 
     @Transactional
     public DeliveryOrder createOrder(DeliveryOrder order) {
@@ -57,8 +63,17 @@ public class OrderService {
         return saved;
     }
 
+    @Transactional
     public DeliveryOrder getOrderByTrackingNo(String trackingNo) {
-        return orderRepository.findByTrackingNo(trackingNo).orElse(null);
+        DeliveryOrder order = orderRepository.findByTrackingNo(trackingNo).orElse(null);
+        if (order != null && order.getStatus() == DeliveryOrder.OrderStatus.DELIVERING && order.getSignCode() == null) {
+            String signCode = generateSignCode();
+            order.setSignCode(signCode);
+            orderRepository.save(order);
+            redisTemplate.opsForValue().set(SIGN_CODE_PREFIX + trackingNo, signCode, 24, java.util.concurrent.TimeUnit.HOURS);
+            log.info("运单 {} 补发生成签收码: {}", trackingNo, signCode);
+        }
+        return order;
     }
 
     public DeliveryOrder getOrderByOrderNo(String orderNo) {
@@ -79,6 +94,13 @@ public class OrderService {
 
         order.setStatus(newStatus);
         updateStatusTime(order, newStatus);
+
+        if (newStatus == DeliveryOrder.OrderStatus.DELIVERING && order.getSignCode() == null) {
+            String signCode = generateSignCode();
+            order.setSignCode(signCode);
+            redisTemplate.opsForValue().set(SIGN_CODE_PREFIX + trackingNo, signCode, 24, java.util.concurrent.TimeUnit.HOURS);
+            log.info("运单 {} 生成签收码: {}", trackingNo, signCode);
+        }
 
         DeliveryOrder saved = orderRepository.save(order);
         saveStatusLog(trackingNo, oldStatus, newStatus, operatorType, operatorId, remark);
@@ -153,5 +175,115 @@ public class OrderService {
         String dateStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMdd"));
         String uuid = UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
         return TRACKING_NO_PREFIX + dateStr + uuid;
+    }
+
+    private String generateSignCode() {
+        int code = (int) (Math.random() * 900000) + 100000;
+        return String.valueOf(code);
+    }
+
+    public Map<String, Object> getSignStatus(String trackingNo) {
+        Map<String, Object> result = new HashMap<>();
+        DeliveryOrder order = orderRepository.findByTrackingNo(trackingNo).orElse(null);
+        if (order == null) {
+            result.put("exists", false);
+            return result;
+        }
+        result.put("exists", true);
+        result.put("status", order.getStatus());
+        result.put("isDelivering", order.getStatus() == DeliveryOrder.OrderStatus.DELIVERING);
+        result.put("isDelivered", order.getStatus() == DeliveryOrder.OrderStatus.DELIVERED);
+
+        String failKey = SIGN_FAIL_PREFIX + trackingNo;
+        String failCountStr = redisTemplate.opsForValue().get(failKey);
+        int failCount = failCountStr != null ? Integer.parseInt(failCountStr) : 0;
+        result.put("failCount", failCount);
+        result.put("isLocked", failCount >= MAX_SIGN_ATTEMPTS);
+
+        Long ttl = redisTemplate.getExpire(failKey, java.util.concurrent.TimeUnit.SECONDS);
+        if (ttl != null && ttl > 0 && failCount >= MAX_SIGN_ATTEMPTS) {
+            result.put("lockRemainingSeconds", ttl);
+        } else {
+            result.put("lockRemainingSeconds", 0);
+        }
+
+        if (order.getStatus() == DeliveryOrder.OrderStatus.DELIVERING && order.getSignCode() != null) {
+            String cachedCode = redisTemplate.opsForValue().get(SIGN_CODE_PREFIX + trackingNo);
+            if (cachedCode == null) {
+                redisTemplate.opsForValue().set(SIGN_CODE_PREFIX + trackingNo, order.getSignCode(),
+                        24, java.util.concurrent.TimeUnit.HOURS);
+            }
+        }
+
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> verifySignAndDeliver(String trackingNo, String signCode,
+                                                    String riderId, String riderName) {
+        Map<String, Object> result = new HashMap<>();
+        DeliveryOrder order = orderRepository.findByTrackingNo(trackingNo)
+                .orElseThrow(() -> new RuntimeException("运单不存在: " + trackingNo));
+
+        if (order.getStatus() != DeliveryOrder.OrderStatus.DELIVERING) {
+            result.put("success", false);
+            result.put("code", 400);
+            result.put("message", "运单状态不是派送中，无法签收");
+            return result;
+        }
+
+        String failKey = SIGN_FAIL_PREFIX + trackingNo;
+        String failCountStr = redisTemplate.opsForValue().get(failKey);
+        int failCount = failCountStr != null ? Integer.parseInt(failCountStr) : 0;
+
+        if (failCount >= MAX_SIGN_ATTEMPTS) {
+            Long ttl = redisTemplate.getExpire(failKey, java.util.concurrent.TimeUnit.SECONDS);
+            result.put("success", false);
+            result.put("code", 429);
+            result.put("message", "签收验证失败次数过多，请" + (ttl != null ? ttl : 600) + "秒后重试");
+            result.put("lockRemainingSeconds", ttl != null ? ttl : 600);
+            result.put("failCount", failCount);
+            return result;
+        }
+
+        String cachedCode = redisTemplate.opsForValue().get(SIGN_CODE_PREFIX + trackingNo);
+        String dbCode = order.getSignCode();
+
+        if (cachedCode == null && dbCode != null) {
+            cachedCode = dbCode;
+            redisTemplate.opsForValue().set(SIGN_CODE_PREFIX + trackingNo, dbCode,
+                    24, java.util.concurrent.TimeUnit.HOURS);
+        }
+
+        if (cachedCode == null || !cachedCode.equals(signCode)) {
+            failCount++;
+            redisTemplate.opsForValue().set(failKey, String.valueOf(failCount),
+                    SIGN_LOCK_SECONDS, java.util.concurrent.TimeUnit.SECONDS);
+
+            result.put("success", false);
+            result.put("code", 400);
+            result.put("message", "签收码错误，还剩" + (MAX_SIGN_ATTEMPTS - failCount) + "次机会");
+            result.put("failCount", failCount);
+            result.put("remainingAttempts", MAX_SIGN_ATTEMPTS - failCount);
+            if (failCount >= MAX_SIGN_ATTEMPTS) {
+                result.put("isLocked", true);
+                result.put("lockRemainingSeconds", SIGN_LOCK_SECONDS);
+            }
+            log.warn("运单 {} 签收码验证失败，次数: {}", trackingNo, failCount);
+            return result;
+        }
+
+        updateOrderStatus(trackingNo, DeliveryOrder.OrderStatus.DELIVERED,
+                "RIDER", riderId, "签收码验证通过（" + signCode.substring(0, 4) + "**）");
+
+        redisTemplate.delete(SIGN_CODE_PREFIX + trackingNo);
+        redisTemplate.delete(failKey);
+
+        result.put("success", true);
+        result.put("code", 200);
+        result.put("message", "签收成功");
+        result.put("data", order);
+        log.info("运单 {} 签收成功，骑手: {}", trackingNo, riderName);
+        return result;
     }
 }

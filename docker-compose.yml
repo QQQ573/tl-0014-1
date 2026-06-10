@@ -3,14 +3,14 @@ version: '3.8'
 services:
   mysql:
     image: mysql:8.0
-    container_name: flower-mysql
+    container_name: flower-0014-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: root123456
       MYSQL_DATABASE: flower_delivery
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -27,10 +27,10 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: flower-redis
+    container_name: flower-0014-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
@@ -42,7 +42,7 @@ services:
 
   redis-warmup:
     image: redis:7-alpine
-    container_name: flower-redis-warmup
+    container_name: flower-0014-redis-warmup
     depends_on:
       redis:
         condition: service_healthy
@@ -59,10 +59,10 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: flower-backend
+    container_name: flower-0014-backend
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       mysql:
         condition: service_healthy
@@ -84,14 +84,14 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: flower-frontend
+    container_name: flower-0014-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "3014:3000"
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_BASE_URL=http://localhost:8080/api
+      - REACT_APP_API_BASE_URL=http://localhost:8081/api
 
 volumes:
   mysql-data:

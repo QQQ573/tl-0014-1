@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { 
   Card, Button, Input, Select, Row, Col, Statistic, 
-  List, Tag, message, Divider, Modal, Form, Radio
+  List, Tag, message, Divider, Modal, Form, Radio, Alert
 } from 'antd'
 import { 
   PlayCircleOutlined, 
@@ -27,6 +27,12 @@ const RiderPage = () => {
   const [exceptionModalVisible, setExceptionModalVisible] = useState(false)
   const [exceptionForm] = Form.useForm()
   const [latestGps, setLatestGps] = useState(null)
+  const [signModalVisible, setSignModalVisible] = useState(false)
+  const [signForm] = Form.useForm()
+  const [signLoading, setSignLoading] = useState(false)
+  const [signError, setSignError] = useState(null)
+  const [signLocked, setSignLocked] = useState(false)
+  const [lockRemaining, setLockRemaining] = useState(0)
 
   const fetchOrders = async () => {
     try {
@@ -157,6 +163,88 @@ const RiderPage = () => {
       message.error('上报失败')
     }
   }
+
+  const openSignModal = () => {
+    setSignError(null)
+    setSignLocked(false)
+    setLockRemaining(0)
+    signForm.resetFields()
+    setSignModalVisible(true)
+    checkSignStatus()
+  }
+
+  const checkSignStatus = async () => {
+    if (!currentOrder) return
+    try {
+      const res = await orderApi.getSignStatus(currentOrder.trackingNo)
+      if (res.success && res.data) {
+        setSignLocked(res.data.isLocked)
+        setLockRemaining(res.data.lockRemainingSeconds || 0)
+        if (res.data.isLocked) {
+          setSignError(`操作过于频繁，请${res.data.lockRemainingSeconds}秒后重试`)
+        }
+      }
+    } catch (err) {
+      console.error('获取签收状态失败', err)
+    }
+  }
+
+  const handleSign = async (values) => {
+    if (!currentOrder || signLocked) return
+    setSignLoading(true)
+    setSignError(null)
+    try {
+      const res = await orderApi.signOrder(currentOrder.trackingNo, {
+        signCode: values.signCode,
+        riderId: riderId,
+        riderName: riderName
+      })
+      if (res.success) {
+        message.success('签收成功')
+        setSignModalVisible(false)
+        setCurrentOrder(res.data)
+        fetchOrders()
+        if (isAutoReporting) {
+          stopAutoReport()
+        }
+      } else {
+        setSignError(res.message || '签收失败')
+        if (res.isLocked) {
+          setSignLocked(true)
+          setLockRemaining(res.lockRemainingSeconds || 600)
+        }
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 429) {
+        const data = err.response.data
+        setSignLocked(true)
+        setLockRemaining(data?.lockRemainingSeconds || 600)
+        setSignError(data?.message || '操作过于频繁，请稍后重试')
+      } else {
+        setSignError('签收失败，请稍后重试')
+      }
+    } finally {
+      setSignLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let interval
+    if (signModalVisible && signLocked && lockRemaining > 0) {
+      interval = setInterval(() => {
+        setLockRemaining(prev => {
+          if (prev <= 1) {
+            setSignLocked(false)
+            setSignError(null)
+            checkSignStatus()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [signModalVisible, signLocked, lockRemaining])
 
   const statusColors = {
     PENDING: 'default',
@@ -359,7 +447,7 @@ const RiderPage = () => {
                       </Button>
                     )}
                     {currentOrder.status === 'DELIVERING' && (
-                      <Button type="primary" onClick={() => handleStatusUpdate('DELIVERED')}>
+                      <Button type="primary" onClick={openSignModal}>
                         确认签收
                       </Button>
                     )}
@@ -451,6 +539,57 @@ const RiderPage = () => {
             }}
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="确认签收"
+        open={signModalVisible}
+        onCancel={() => setSignModalVisible(false)}
+        onOk={() => signForm.submit()}
+        okText="确认签收"
+        cancelText="取消"
+        confirmLoading={signLoading}
+        okButtonProps={{ disabled: signLocked }}
+      >
+        {currentOrder && (
+          <div>
+            <p style={{ marginBottom: '16px' }}>
+              <strong>运单号：</strong>{currentOrder.trackingNo}
+            </p>
+            <p style={{ marginBottom: '16px', color: '#666', fontSize: '13px' }}>
+              请向收件人索取 6 位签收验证码并输入下方：
+            </p>
+            <Form form={signForm} layout="vertical" onFinish={handleSign}>
+              <Form.Item
+                name="signCode"
+                label="签收验证码"
+                rules={[
+                  { required: true, message: '请输入签收验证码' },
+                  { pattern: /^\d{6}$/, message: '请输入 6 位数字验证码' }
+                ]}
+              >
+                <Input 
+                  placeholder="请输入 6 位数字验证码" 
+                  maxLength={6}
+                  style={{ fontSize: '20px', letterSpacing: '8px', textAlign: 'center' }}
+                  disabled={signLocked}
+                />
+              </Form.Item>
+              {signError && (
+                <Alert
+                  type={signLocked ? 'warning' : 'error'}
+                  showIcon
+                  message={signLocked ? `已锁定，请 ${lockRemaining} 秒后重试` : signError}
+                  style={{ marginBottom: '16px' }}
+                />
+              )}
+            </Form>
+            <div style={{ marginTop: '12px', fontSize: '12px', color: '#999' }}>
+              <p>• 连续输错 3 次将锁定 10 分钟</p>
+              <p>• 签收码由收件人在顾客端查看</p>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

@@ -228,6 +228,33 @@ const CustomerPage = () => {
                 </Row>
 
                 <Timeline items={getTimelineItems()} />
+
+                {order.status === 'DELIVERING' && order.signCode && (
+                  <div style={{ 
+                    marginTop: '16px', 
+                    padding: '16px', 
+                    background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', 
+                    borderRadius: '8px',
+                    color: '#fff'
+                  }}>
+                    <div style={{ fontSize: '13px', marginBottom: '8px', opacity: 0.9 }}>
+                      🔐 签收验证码（请告知骑手）
+                    </div>
+                    <div style={{ 
+                      fontSize: '28px', 
+                      fontWeight: 'bold', 
+                      letterSpacing: '4px',
+                      textAlign: 'center',
+                      marginBottom: '8px',
+                      fontFamily: 'monospace'
+                    }}>
+                      {order.signCode}
+                    </div>
+                    <div style={{ fontSize: '12px', textAlign: 'center', opacity: 0.8 }}>
+                      有效期 24 小时 · 请勿泄露给他人
+                    </div>
+                  </div>
+                )}
               </Card>
 
               <Card title="订单信息">

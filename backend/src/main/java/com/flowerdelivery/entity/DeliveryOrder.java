@@ -72,6 +72,9 @@ public class DeliveryOrder {
     @Column(name = "exception_type", length = 32)
     private String exceptionType;
 
+    @Column(name = "sign_code", length = 8)
+    private String signCode;
+
     @CreationTimestamp
     @Column(name = "create_time", nullable = false, updatable = false)
     private LocalDateTime createTime;

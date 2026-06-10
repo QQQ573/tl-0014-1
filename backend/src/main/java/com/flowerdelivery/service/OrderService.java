@@ -152,6 +152,14 @@ public class OrderService {
         return orderRepository.findExceptionOrders();
     }
 
+    public List<DeliveryOrder> getAllOrders() {
+        return orderRepository.findAll();
+    }
+
+    public List<DeliveryOrder> getOrdersByStatus(DeliveryOrder.OrderStatus status) {
+        return orderRepository.findByStatus(status);
+    }
+
     public List<DeliveryOrder> getOrdersByRider(String riderId) {
         return orderRepository.findByRiderId(riderId);
     }

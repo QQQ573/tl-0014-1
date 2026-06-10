@@ -15,6 +15,8 @@ request.interceptors.response.use(
 
 export const orderApi = {
   createOrder: (data) => request.post('/orders', data),
+  getAllOrders: () => request.get('/orders'),
+  getOrdersByStatus: (status) => request.get(`/orders/status/${status}`),
   getOrderByTrackingNo: (trackingNo) => request.get(`/orders/tracking/${trackingNo}`),
   getOrderByOrderNo: (orderNo) => request.get(`/orders/orderNo/${orderNo}`),
   updateStatus: (trackingNo, status, operatorType, operatorId, remark) => 

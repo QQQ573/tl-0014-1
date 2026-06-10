@@ -87,6 +87,24 @@ public class OrderController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getAllOrders() {
+        List<DeliveryOrder> orders = orderService.getAllOrders();
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("data", orders);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/status/{status}")
+    public ResponseEntity<Map<String, Object>> getOrdersByStatus(@PathVariable String status) {
+        List<DeliveryOrder> orders = orderService.getOrdersByStatus(DeliveryOrder.OrderStatus.valueOf(status.toUpperCase()));
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("data", orders);
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/rider/{riderId}")
     public ResponseEntity<Map<String, Object>> getOrdersByRider(@PathVariable String riderId) {
         List<DeliveryOrder> orders = orderService.getOrdersByRider(riderId);

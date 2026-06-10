@@ -6,12 +6,14 @@ import {
   TruckOutlined, 
   UserOutlined, 
   AuditOutlined,
-  ShoppingOutlined
+  ShoppingOutlined,
+  SettingOutlined
 } from '@ant-design/icons'
 import CustomerPage from './pages/CustomerPage'
 import RiderPage from './pages/RiderPage'
 import ReviewPage from './pages/ReviewPage'
 import OrderCreatePage from './pages/OrderCreatePage'
+import AdminPage from './pages/AdminPage'
 import 'antd/dist/reset.css'
 import './index.css'
 
@@ -28,6 +30,11 @@ function App() {
       key: '/rider',
       icon: <TruckOutlined />,
       label: <Link to="/rider">骑手端 - GPS上报</Link>,
+    },
+    {
+      key: '/admin',
+      icon: <SettingOutlined />,
+      label: <Link to="/admin">管理后台 - 订单管理</Link>,
     },
     {
       key: '/review',
@@ -78,6 +85,7 @@ function App() {
                   <Route path="/" element={<Navigate to="/customer" replace />} />
                   <Route path="/customer" element={<CustomerPage />} />
                   <Route path="/rider" element={<RiderPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
                   <Route path="/review" element={<ReviewPage />} />
                   <Route path="/order-create" element={<OrderCreatePage />} />
                 </Routes>

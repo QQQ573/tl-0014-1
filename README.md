@@ -15,6 +15,13 @@
 - 📍 **Mock GPS 上报**（按固定路径模拟）
 - ⚡ 支持手动/自动两种上报模式
 - 🔔 一键上报异常（花瓣损伤 / 收件人改址）
+- 🔐 签收码验证（3次错误锁定10分钟）
+
+### 管理后台
+- 📦 **订单全流程管理**：出库 → 装车 → 分配骑手 → 派送
+- 🔍 按状态筛选 / 关键词搜索
+- 📊 订单数量统计看板
+- 📋 订单详情与状态流转日志
 
 ### 审核后台
 - 📝 **异常工单审核**（值班花艺师）
@@ -324,3 +331,122 @@ tl-0008-1/
 - GPS 轨迹为模拟数据，路径固定用于演示
 - 敏感词检测基于 Redis Set，可通过接口动态添加
 - 所有时间均使用 Asia/Shanghai 时区
+
+## 🔐 签收验证码
+
+运单进入派送中（DELIVERING）状态时，系统自动生成 6 位数字签收码，同时写入数据库和 Redis（TTL 24 小时）。
+
+- **顾客端**：派送中状态下展示签收码，供收件人告知骑手
+- **骑手端**：确认签收时需输入正确签收码，连续 3 次错误锁定 10 分钟
+- **状态查询**：`GET /api/orders/{trackingNo}/sign-status` 可查询锁定状态
+
+### Redis 键说明
+
+| 键名 | 类型 | TTL | 说明 |
+|------|------|-----|------|
+| flower:sign:{trackingNo} | String | 24h | 签收验证码 |
+| flower:sign:fail:{trackingNo} | String | 10min | 错误次数计数 |
+
+### curl 演示
+
+**前置条件**：运单 `FD0214ABCD12` 处于 DELIVERING 状态。
+
+#### 1. 查询签收状态
+
+```bash
+curl -X GET http://localhost:8080/api/orders/FD0214ABCD12/sign-status
+```
+
+返回示例：
+```json
+{
+  "success": true,
+  "data": {
+    "exists": true,
+    "status": "DELIVERING",
+    "isDelivering": true,
+    "isDelivered": false,
+    "failCount": 0,
+    "isLocked": false,
+    "lockRemainingSeconds": 0
+  }
+}
+```
+
+#### 2. 正确签收（先查码再验证）
+
+```bash
+# 先查询运单获取签收码（模拟顾客端查看）
+curl -X GET http://localhost:8080/api/orders/tracking/FD0214ABCD12
+
+# 使用正确签收码完成签收（模拟骑手端）
+curl -X POST http://localhost:8080/api/orders/FD0214ABCD12/sign \
+  -H "Content-Type: application/json" \
+  -d '{
+    "signCode": "123456",
+    "riderId": "RIDER001",
+    "riderName": "王师傅"
+  }'
+```
+
+返回示例（成功）：
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "签收成功",
+  "data": { ... }
+}
+```
+
+#### 3. 错误三次锁定
+
+```bash
+# 第 1 次输错
+curl -X POST http://localhost:8080/api/orders/FD0214ABCD12/sign \
+  -H "Content-Type: application/json" \
+  -d '{"signCode":"000000","riderId":"RIDER001","riderName":"王师傅"}'
+
+# 第 2 次输错
+curl -X POST http://localhost:8080/api/orders/FD0214ABCD12/sign \
+  -H "Content-Type: application/json" \
+  -d '{"signCode":"111111","riderId":"RIDER001","riderName":"王师傅"}'
+
+# 第 3 次输错 → 触发锁定，返回 429
+curl -X POST http://localhost:8080/api/orders/FD0214ABCD12/sign \
+  -H "Content-Type: application/json" \
+  -d '{"signCode":"222222","riderId":"RIDER001","riderName":"王师傅"}'
+```
+
+第 3 次返回示例（HTTP 429）：
+```json
+{
+  "success": false,
+  "code": 429,
+  "message": "签收验证失败次数过多，请600秒后重试",
+  "lockRemainingSeconds": 600,
+  "failCount": 3
+}
+```
+
+#### 4. 冷却结束后重试
+
+锁定期间查询状态会显示剩余冷却时间：
+
+```bash
+curl -X GET http://localhost:8080/api/orders/FD0214ABCD12/sign-status
+```
+
+返回示例（锁定中）：
+```json
+{
+  "success": true,
+  "data": {
+    "isLocked": true,
+    "failCount": 3,
+    "lockRemainingSeconds": 542
+  }
+}
+```
+
+等待 10 分钟后自动解锁，可重新输入正确签收码完成签收。

@@ -13,7 +13,7 @@ import {
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import dayjs from 'dayjs'
-import { orderApi, gpsApi } from '../services/api'
+import { orderApi, gpsApi, exceptionApi } from '../services/api'
 
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -55,6 +55,7 @@ const CustomerPage = () => {
   const [gpsTrack, setGpsTrack] = useState([])
   const [loading, setLoading] = useState(false)
   const [statusLogs, setStatusLogs] = useState([])
+  const [exceptionInfo, setExceptionInfo] = useState(null)
 
   const fetchOrder = async () => {
     if (!inputValue.trim()) {
@@ -77,6 +78,15 @@ const CustomerPage = () => {
         const logRes = await orderApi.getStatusLogs(inputValue.trim())
         if (logRes.success) {
           setStatusLogs(logRes.data)
+        }
+
+        const exRes = await exceptionApi.getExceptionsByTrackingNo(inputValue.trim())
+        if (exRes.success && exRes.data.length > 0) {
+          const pending = exRes.data.find(e => e.status === 'PENDING_REVIEW')
+          const latestResolved = exRes.data.find(e => e.status === 'RESOLVED')
+          setExceptionInfo(pending || latestResolved || null)
+        } else {
+          setExceptionInfo(null)
         }
       } else {
         message.error(orderRes.message || '运单不存在')
@@ -175,12 +185,21 @@ const CustomerPage = () => {
           </Button>
         </div>
 
-        {order?.isException && (
+        {order?.isException && exceptionInfo && (
           <Alert
             type="warning"
             showIcon
             message="订单异常"
             description={`该订单存在${order.exceptionType === 'PETAL_DAMAGE' ? '花瓣损伤' : order.exceptionType === 'ADDRESS_CHANGE' ? '地址变更' : '敏感词'}异常，已提交审核，处理结果会第一时间通知您。`}
+            style={{ marginBottom: '16px' }}
+          />
+        )}
+        {!order?.isException && exceptionInfo?.status === 'RESOLVED' && exceptionInfo.reissueTrackingNo && (
+          <Alert
+            type="success"
+            showIcon
+            message="补发已安排"
+            description={`花艺师已审核通过并安排补发，新运单号：${exceptionInfo.reissueTrackingNo}，您可输入该运单号追踪补发进度。`}
             style={{ marginBottom: '16px' }}
           />
         )}

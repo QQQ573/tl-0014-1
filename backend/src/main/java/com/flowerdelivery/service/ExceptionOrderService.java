@@ -130,17 +130,20 @@ public class ExceptionOrderService {
                 reissueOrder.setCustomerPhone(order.getCustomerPhone());
                 reissueOrder.setRecipientName(order.getRecipientName());
                 reissueOrder.setRecipientPhone(order.getRecipientPhone());
-                reissueOrder.setDeliveryAddress(exception.getNewAddress() != null ? exception.getNewAddress() : order.getDeliveryAddress());
-                reissueOrder.setLatitude(exception.getNewLatitude() != null ? exception.getNewLatitude() : order.getLatitude());
-                reissueOrder.setLongitude(exception.getNewLongitude() != null ? exception.getNewLongitude() : order.getLongitude());
+                reissueOrder.setDeliveryAddress(order.getDeliveryAddress());
+                reissueOrder.setLatitude(order.getLatitude());
+                reissueOrder.setLongitude(order.getLongitude());
                 reissueOrder.setFlowerType(order.getFlowerType());
                 reissueOrder.setQuantity(order.getQuantity());
                 reissueOrder.setAmount(order.getAmount());
                 reissueOrder.setCardMessage(order.getCardMessage());
                 DeliveryOrder saved = orderService.createOrder(reissueOrder);
-                exception.setReissueTrackingNo(saved.getTrackingNo());
                 orderService.updateOrderStatus(saved.getTrackingNo(), DeliveryOrder.OrderStatus.OUTBOUND,
                         "SYSTEM", "auto_reissue", "补发订单自动出库");
+                exception.setReissueTrackingNo(saved.getTrackingNo());
+                order.setIsException(false);
+                order.setExceptionType(null);
+                orderRepository.save(order);
                 break;
 
             case PARTIAL_REFUND:
